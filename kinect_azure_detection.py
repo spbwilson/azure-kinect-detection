@@ -24,8 +24,8 @@ train = CustomVisionTrainingClient(training_key, endpoint=endpoint)
 predict = CustomVisionPredictionClient(prediction_key, endpoint=endpoint)
 project = train.get_project(project_id)
 
-base_image_url = "C:/Users/me1spw/Documents/Projects/AI3870 - AROPCQA/kinect-object-detection/"
-img_out_name = base_image_url + "frame_out.jpg"
+base_image_url = os.getcwd()
+img_out_name = base_image_url + "/frame_out.jpg"
 
 confidence = 0.5
 
@@ -141,7 +141,7 @@ if __name__ == "__main__":
         depth_out = depth_vis[y:y+height, x:x+width]
 
         # Save as depth image
-        depth_out_name = base_image_url + "detection_" + str(index) + ".jpg"
+        depth_out_name = base_image_url + "/detection_" + str(index) + ".jpg"
         cv2.imwrite(depth_out_name, depth_out)
 
         # Save as .obj
