@@ -125,7 +125,7 @@ def detect(ab_img_full, data_path):
     # Use Azure service to detect objects in frame
     file_name = data_path + "capture.jpg"
     cv2.imwrite(file_name, ab_vis)
-    
+
     with open(file_name, mode="rb") as image_data:
         results = predict.detect_image(project.id, publish_iteration_name, image_data)
 
@@ -166,6 +166,9 @@ def save_detections(detections, depth_img_full, data_path):
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(xyz)
         o3d.io.write_point_cloud(file_name + ".ply", pcd)
+        
+        # Visualiser for testing
+        # o3d.visualization.draw_geometries([pcd])
 
         # Increment index of detection
         index += 1       
