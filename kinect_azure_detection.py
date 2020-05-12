@@ -7,7 +7,9 @@ import tkinter as tk
 
 # For visualization
 import cv2
+from PIL import ImageTk, Image
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # For PLY work
 import open3d as o3d
@@ -81,13 +83,13 @@ def add_boxes_to_images(img, predictions):
 
 #------------------------------------------------------------------------------
 # Shows the image
-def show_inline_img(img):
+def show_img(img):
 
+    # Show image
     inline_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     
     plt.figure(figsize=(10, 20))
     plt.axis('off')
-    
     plt.imshow(inline_img)
 
 #------------------------------------------------------------------------------
@@ -126,14 +128,6 @@ def stream(fileHandle):
     # Reshape for image visualization
     depth_img_full = np.frombuffer(depth_data[1], dtype=np.uint16).reshape(FRAME_HEIGHT, FRAME_WIDTH).copy()
     ab_img_full = np.frombuffer(ab_data[1], dtype=np.uint16).reshape(FRAME_HEIGHT, FRAME_WIDTH).copy()
-    
-    depth_vis = (plt.get_cmap("gray")(depth_img_full / MAX_DEPTH_FOR_VIS)[..., :3]*255.0).astype(np.uint8)
-    ab_vis = (plt.get_cmap("gray")(ab_img_full / MAX_AB_FOR_VIS)[..., :3]*255.0).astype(np.uint8)
-    
-    # Visualize the images
-    vis = np.hstack([depth_vis, ab_vis])
-    vis = cv2.cvtColor(vis, cv2.COLOR_BGR2RGB)
-    cv2.imshow("vis", vis)
 
     return depth_img_full, ab_img_full
 
@@ -149,12 +143,6 @@ def detect(ab_img_full):
 
     # Get predictions over confidence value
     detections = append_predictions(results, confidence)
-
-    # Display detections
-    img = cv2.imread(img_out_name, cv2.IMREAD_COLOR)
-    add_boxes_to_images(img, detections)
-    show_inline_img(img)
-    cv2.imshow("Test", img)
 
     return detections
 
@@ -208,35 +196,57 @@ def detect_click():
 if __name__ == "__main__":
 
     # Setup UI
-    root = tk.Tk()
+    gui = tk.Tk()
+    gui.title("Kinect Azure Detection")
+    gui.config(bg="white")
 
-    canvas = tk.Canvas(root, height=700, width=700, bg="white")
-    canvas.pack()
+    stream_label = tk.Label(gui, height=300, width=300, bg="#EEEEEE")
+    stream_label.grid(row=0, column=0)
 
-    frame = tk.Frame(root, bg="#EEEEEE")
-    frame.place(relwidth=0.8, relheight=0.8, relx=0.1, rely=0.1)
+    #detect_canvas = tk.Label(gui, height=300, width=300, bg="#EEEEEE")
+    #detect_canvas.grid(row=0, column=1)
 
-    detect_btn = tk.Button(root, text="Detect", padx=10, pady=5, fg="white", bg="#0099DF", command=detect_click)
-    detect_btn.pack()
+    detect_btn = tk.Button(gui, text="Detect", padx=10, pady=5, fg="white", bg="#0099DF", command=detect_click)
+    detect_btn.grid(row=1, column=0, columnspan=3)
 
     # Begin..
     fileHandle = start_stream()
 
     while True:
-        root.update()
+        # Clear stream container
+        stream_label.grid_forget()
+
+        # Get latest sensor data
         depth_img_full, ab_img_full = stream(fileHandle)
         
-        if pressed:
-            detections = detect(ab_img_full)
-            extract_3d(detections, depth_img_full)
-            pressed = False
+        # Display frame       
+        img = Image.fromarray(ab_img_full)
+        tk_img = ImageTk.PhotoImage(img)
+        stream_label = tk.Label(gui, image=tk_img)
+        stream_label.grid(row=0, column=0)
 
+        # On button press..
+        # if pressed:
+        #     detect_canvas.grid_forget()
+        #     detections = detect(ab_img_full)
+        #     extract_3d(detections, depth_img_full)
+        #     pressed = False
+
+        #     detections = detect(ab_img_full)
+        # add_boxes_to_images(img, detections)
+        # tk_img = ImageTk.PhotoImage(img)
+        # stream_label = tk.Label(gui, image=tk_img, height=300, width=300)
+        # stream_label.grid(row=0, column=0)
+
+
+        # Exit
         key = cv2.waitKey(1)
         if key == 27: # Esc key to stop
             break
-    
+
+        gui.update()
     
 
     end_stream(fileHandle)
     input("Press Enter to exit")
-    root.quit()
+    gui.quit()
