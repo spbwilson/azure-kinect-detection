@@ -9,7 +9,6 @@ import tkinter as tk
 import cv2
 from PIL import ImageTk, Image
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # For PLY work
 import open3d as o3d
@@ -80,17 +79,8 @@ def add_boxes_to_images(img, predictions):
 
         img = cv2.rectangle(img, (x, y), (width, height), (0, 0, 255), 2)
         img = cv2.putText(img, pred.tag_name, (x + 5, y + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 1, cv2.LINE_AA, False)
-
-#------------------------------------------------------------------------------
-# Shows the image
-def show_img(img):
-
-    # Show image
-    inline_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    
-    plt.figure(figsize=(10, 20))
-    plt.axis('off')
-    plt.imshow(inline_img)
+        
+        return img
 
 #------------------------------------------------------------------------------
 def start_stream():
@@ -101,10 +91,6 @@ def start_stream():
         0, None,
         win32file.OPEN_EXISTING,
         0, None)
-    
-    # For visualization
-    cv2.namedWindow('vis', cv2.WINDOW_NORMAL)
-    cv2.resizeWindow('vis', FRAME_WIDTH * 2, FRAME_HEIGHT)
 
     return fileHandle
 
@@ -147,7 +133,7 @@ def detect(ab_img_full):
     return detections
 
 #------------------------------------------------------------------------------
-def extract_3d(detections, depth_img_full):
+def save_depth_detections(detections, depth_img_full):
 
     # Crop depth image
     depth_vis = (plt.get_cmap("gray")(depth_img_full / MAX_DEPTH_FOR_VIS)[..., :3]*255.0).astype(np.uint8)
@@ -167,24 +153,20 @@ def extract_3d(detections, depth_img_full):
         depth_out_name = base_image_url + "/detection_" + str(index) + ".jpg"
         cv2.imwrite(depth_out_name, depth_out)
 
-        # Increment index of detection
-        index += 1
-
         # # Change 1D to xyz
-        # xyz = []
-        # for row in range(0, FRAME_HEIGHT):
-        #     for col in range(0, FRAME_WIDTH):
-        #         xyz.append([col, row, depth_img_full[row][col]])
-        # xyz = np.array(xyz)
+        xyz = []
+        for row in range(0, FRAME_HEIGHT):
+            for col in range(0, FRAME_WIDTH):
+                xyz.append([col, row, depth_img_full[row][col]])
+        xyz = np.array(xyz)
 
-        # # PLY
-        # np_points = np.random.rand(100, 3)
-        # pcd = o3d.geometry.PointCloud()
-        # pcd.points = o3d.utility.Vector3dVector(depth_img_full)
-        # o3d.io.write_point_cloud("/test.ply", pcd) 
-        
-        #o3d_img = o3d.io.read_image(depth_out_name)
-        #pcd = o3d.geometry.PointCloud.create_from_depth_image(extrinsic = depth_img_full)       
+        # PLY
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(xyz)
+        # o3d.io.write_point_cloud("/test.ply", pcd)
+
+        # Increment index of detection
+        index += 1       
 
 #------------------------------------------------------------------------------
 def detect_click():
@@ -206,49 +188,51 @@ if __name__ == "__main__":
     gui.title("Kinect Azure Detection")
     gui.config(bg="white")
 
-    stream_label = tk.Label(gui, height=300, width=300, bg="#EEEEEE")
+    stream_label = tk.Label(gui, bg="#EEEEEE")
     stream_label.grid(row=0, column=0)
 
-    #detect_label = tk.Label(gui, height=300, width=300, bg="#EEEEEE")
-    #detect_label.grid(row=0, column=1)
+    # detect_label = tk.Label(gui, bg="#EEEEEE")
+    # detect_label.grid(row=0, column=1)
 
     detect_btn = tk.Button(gui, text="Detect", padx=10, pady=5, fg="white", bg="#0099DF", command=detect_click)
-    detect_btn.grid(row=1, column=0, columnspan=3)
+    detect_btn.grid(row=1, column=0, columnspan=2)
 
     # Begin..
     fileHandle = start_stream()
 
-    #while True:
-    # Get latest sensor data
-    depth_img_full, ab_img_full = stream(fileHandle)
-    
-    # Display frame       
-    img = Image.fromarray(ab_img_full)
-    tk_img = ImageTk.PhotoImage(img)
-    stream_label.grid_forget()
-    stream_label = tk.Label(gui, image=tk_img)
-    stream_label.grid(row=0, column=0)
+    while True:
+        # Get latest sensor data
+        depth_img_full, ab_img_full = stream(fileHandle)
+        
+        # Conver image format (numpy -> PIL -> ImageTK)      
+        img = Image.fromarray(ab_img_full)
+        tk_img = ImageTk.PhotoImage(img)
 
-    # On button press..
-    # if pressed:
-    #     detect_label.grid_forget()
-    #     detections = detect(ab_img_full)
-    #     extract_3d(detections, depth_img_full)
-    #     pressed = False
+        # Display frame
+        stream_label.grid_forget()
+        stream_label = tk.Label(gui, image=tk_img)
+        stream_label.grid(row=0, column=0)
 
-    #     detections = detect(ab_img_full)
-    # add_boxes_to_images(img, detections)
-    # tk_img = ImageTk.PhotoImage(img)
-    # stream_label = tk.Label(gui, image=tk_img, height=300, width=300)
-    # stream_label.grid(row=0, column=0)
+        # On button press..
+        if pressed:
+            pressed = False
 
+            # Call Azure to get detections
+            detections = detect(ab_img_full)
+            save_depth_detections(detections, depth_img_full)
 
-    # Exit
-    # key = cv2.waitKey(1)
-    # if key == 27: # Esc key to stop
-    #     break
+            # Add bounding boxes and convert format (numpy -> PIL -> ImageTK)
+            img = add_boxes_to_images(ab_img_full, detections)
+            img_out = Image.fromarray(img)
+            tk_img = ImageTk.PhotoImage(img_out)
 
-    gui.update()
-    
+            # Display frame
+            stream_label.grid_forget()
+            stream_label = tk.Label(gui, image=tk_img)
+            stream_label.grid(row=0, column=0)
+            
+            gui.update()
+            cv2.waitKey(2000)
+            
 
-    quit()
+        gui.update()
