@@ -125,6 +125,7 @@ def detect(ab_img_full, data_path):
     # Use Azure service to detect objects in frame
     file_name = data_path + "capture.jpg"
     cv2.imwrite(file_name, ab_vis)
+    
     with open(file_name, mode="rb") as image_data:
         results = predict.detect_image(project.id, publish_iteration_name, image_data)
 
@@ -134,7 +135,7 @@ def detect(ab_img_full, data_path):
     return detections
 
 #------------------------------------------------------------------------------
-def save_depth_detections(detections, depth_img_full, data_path):
+def save_detections(detections, depth_img_full, data_path):
 
     # Crop depth image
     depth_vis = (plt.get_cmap("gray")(depth_img_full / MAX_DEPTH_FOR_VIS)[..., :3]*255.0).astype(np.uint8)
@@ -225,7 +226,7 @@ if __name__ == "__main__":
 
             # Call Azure to get detections
             detections = detect(ab_img_full, data_path)
-            save_depth_detections(detections, depth_img_full, data_path)
+            save_detections(detections, depth_img_full, data_path)
 
             # Add bounding boxes and convert format (numpy -> PIL -> ImageTK)
             img = add_boxes_to_images(ab_img_full, detections)
