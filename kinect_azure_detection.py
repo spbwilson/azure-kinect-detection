@@ -3,6 +3,7 @@ import win32file
 
 import numpy as np
 import os, os.path
+import datetime
 import tkinter as tk
 
 # For visualization
@@ -33,8 +34,7 @@ project = train.get_project(project_id)
 confidence = 0.5
 
 #----- OS VARIABLES -----
-base_image_url = os.getcwd()
-img_out_name = base_image_url + "/frame_out.jpg"
+base_path = os.getcwd() + "/data/"
 
 #----- KINECT VARIABLES -----
 # The image size of depth/ir (Assuming depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED, change it otherwise)
@@ -118,13 +118,14 @@ def stream(fileHandle):
     return depth_img_full, ab_img_full
 
 #------------------------------------------------------------------------------
-def detect(ab_img_full):
+def detect(ab_img_full, data_path):
     
     ab_vis = (plt.get_cmap("gray")(ab_img_full / MAX_AB_FOR_VIS)[..., :3]*255.0).astype(np.uint8)
 
     # Use Azure service to detect objects in frame
-    cv2.imwrite(img_out_name, ab_vis)
-    with open(img_out_name, mode="rb") as image_data:
+    file_name = data_path + "capture.jpg"
+    cv2.imwrite(file_name, ab_vis)
+    with open(file_name, mode="rb") as image_data:
         results = predict.detect_image(project.id, publish_iteration_name, image_data)
 
     # Get predictions over confidence value
@@ -133,11 +134,11 @@ def detect(ab_img_full):
     return detections
 
 #------------------------------------------------------------------------------
-def save_depth_detections(detections, depth_img_full):
+def save_depth_detections(detections, depth_img_full, data_path):
 
     # Crop depth image
     depth_vis = (plt.get_cmap("gray")(depth_img_full / MAX_DEPTH_FOR_VIS)[..., :3]*255.0).astype(np.uint8)
-    img = cv2.imread(img_out_name, cv2.IMREAD_COLOR)
+    img = cv2.imread(data_path + "capture.jpg", cv2.IMREAD_COLOR)
     
     index = 0
     for det in detections:
@@ -150,8 +151,8 @@ def save_depth_detections(detections, depth_img_full):
         depth_out = depth_vis[y:y+height , x:x+width]
 
         # Save as depth image
-        depth_out_name = base_image_url + "/detection_" + str(index) + ".jpg"
-        cv2.imwrite(depth_out_name, depth_out)
+        file_name = data_path + "detection_" + str(index)
+        cv2.imwrite(file_name + ".jpg", depth_out)
 
         # # Change 1D to xyz
         xyz = []
@@ -163,7 +164,7 @@ def save_depth_detections(detections, depth_img_full):
         # PLY
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(xyz)
-        # o3d.io.write_point_cloud("/test.ply", pcd)
+        o3d.io.write_point_cloud(file_name + ".ply", pcd)
 
         # Increment index of detection
         index += 1       
@@ -217,9 +218,14 @@ if __name__ == "__main__":
         if pressed:
             pressed = False
 
+            # Capture timestamp and create dir
+            dt = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+            data_path = base_path + dt + '/'
+            os.mkdir(data_path)
+
             # Call Azure to get detections
-            detections = detect(ab_img_full)
-            save_depth_detections(detections, depth_img_full)
+            detections = detect(ab_img_full, data_path)
+            save_depth_detections(detections, depth_img_full, data_path)
 
             # Add bounding boxes and convert format (numpy -> PIL -> ImageTK)
             img = add_boxes_to_images(ab_img_full, detections)
