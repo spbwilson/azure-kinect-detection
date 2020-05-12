@@ -188,9 +188,15 @@ def extract_3d(detections, depth_img_full):
 
 #------------------------------------------------------------------------------
 def detect_click():
-    print("Click!")
-    global pressed 
+    global pressed
     pressed = True
+
+#------------------------------------------------------------------------------
+def quit():
+    global fileHandle
+    end_stream(fileHandle)
+    input("Press Enter to exit")
+    gui.quit()
 
 #=================================== MAIN =====================================
 if __name__ == "__main__":
@@ -203,8 +209,8 @@ if __name__ == "__main__":
     stream_label = tk.Label(gui, height=300, width=300, bg="#EEEEEE")
     stream_label.grid(row=0, column=0)
 
-    #detect_canvas = tk.Label(gui, height=300, width=300, bg="#EEEEEE")
-    #detect_canvas.grid(row=0, column=1)
+    #detect_label = tk.Label(gui, height=300, width=300, bg="#EEEEEE")
+    #detect_label.grid(row=0, column=1)
 
     detect_btn = tk.Button(gui, text="Detect", padx=10, pady=5, fg="white", bg="#0099DF", command=detect_click)
     detect_btn.grid(row=1, column=0, columnspan=3)
@@ -212,41 +218,37 @@ if __name__ == "__main__":
     # Begin..
     fileHandle = start_stream()
 
-    while True:
-        # Clear stream container
-        stream_label.grid_forget()
+    #while True:
+    # Get latest sensor data
+    depth_img_full, ab_img_full = stream(fileHandle)
+    
+    # Display frame       
+    img = Image.fromarray(ab_img_full)
+    tk_img = ImageTk.PhotoImage(img)
+    stream_label.grid_forget()
+    stream_label = tk.Label(gui, image=tk_img)
+    stream_label.grid(row=0, column=0)
 
-        # Get latest sensor data
-        depth_img_full, ab_img_full = stream(fileHandle)
-        
-        # Display frame       
-        img = Image.fromarray(ab_img_full)
-        tk_img = ImageTk.PhotoImage(img)
-        stream_label = tk.Label(gui, image=tk_img)
-        stream_label.grid(row=0, column=0)
+    # On button press..
+    # if pressed:
+    #     detect_label.grid_forget()
+    #     detections = detect(ab_img_full)
+    #     extract_3d(detections, depth_img_full)
+    #     pressed = False
 
-        # On button press..
-        # if pressed:
-        #     detect_canvas.grid_forget()
-        #     detections = detect(ab_img_full)
-        #     extract_3d(detections, depth_img_full)
-        #     pressed = False
-
-        #     detections = detect(ab_img_full)
-        # add_boxes_to_images(img, detections)
-        # tk_img = ImageTk.PhotoImage(img)
-        # stream_label = tk.Label(gui, image=tk_img, height=300, width=300)
-        # stream_label.grid(row=0, column=0)
+    #     detections = detect(ab_img_full)
+    # add_boxes_to_images(img, detections)
+    # tk_img = ImageTk.PhotoImage(img)
+    # stream_label = tk.Label(gui, image=tk_img, height=300, width=300)
+    # stream_label.grid(row=0, column=0)
 
 
-        # Exit
-        key = cv2.waitKey(1)
-        if key == 27: # Esc key to stop
-            break
+    # Exit
+    # key = cv2.waitKey(1)
+    # if key == 27: # Esc key to stop
+    #     break
 
-        gui.update()
+    gui.update()
     
 
-    end_stream(fileHandle)
-    input("Press Enter to exit")
-    gui.quit()
+    quit()
